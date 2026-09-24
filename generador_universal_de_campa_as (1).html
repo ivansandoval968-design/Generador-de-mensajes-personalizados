@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador Universal de Campañas - Productos Arquitectónicos</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Librería para leer archivos Excel (SheetJS) -->
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0fdfa',
+                            100: '#ccfbf1',
+                            500: '#14b8a6',
+                            600: '#0d9488',
+                            900: '#134e4a',
+                        },
+                        whatsapp: '#25D366',
+                        whatsappDark: '#128C7E'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .card-hover { transition: all 0.2s ease-in-out; }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex items-center gap-4">
+                <div class="bg-brand-500 p-2.5 rounded-lg">
+                    <i class="fa-solid fa-layer-group text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight">Generador de Campañas</h1>
+                    <p class="text-slate-400 text-sm">Productos Arquitectónicos</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-8">
+            <h2 class="text-lg font-semibold mb-4 text-slate-800 border-b pb-2">1. Configurar Campaña</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Producto o Marca a promocionar</label>
+                    <input type="text" id="brandInput" class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all" placeholder="Ej: los sanitarios Roca, las griferías Hansgrohe..." value="los sanitarios Roca">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Enlace del Catálogo / Landing Page</label>
+                    <input type="url" id="linkInput" class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all" placeholder="https://..." value="https://productosarquitectonicos.my.canva.site/roca/">
+                </div>
+            </div>
+
+            <div class="mb-6 bg-brand-50 p-4 rounded-xl border border-brand-100">
+                <label class="block text-sm font-medium text-slate-800 mb-1"><i class="fa-solid fa-pen-to-square text-brand-600 mr-1"></i> Plantilla del Mensaje</label>
+                <p class="text-xs text-slate-500 mb-3">Usa las palabras clave <strong>{Saludo}</strong>, <strong>{Producto}</strong> y <strong>{Enlace}</strong>. Al editar este cuadro, los mensajes de abajo se actualizarán al instante.</p>
+                <textarea id="messageTemplate" rows="4" class="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all resize-none text-sm text-slate-700">Hola {Saludo}, ¿cómo va todo? Te escribo brevemente para contarte que ya tenemos disponibles {Producto}. Te comparto el enlace por aquí para que veas los diferentes modelos: 👉 {Enlace} Míralos con calma y me cuentas qué te parecen.</textarea>
+            </div>
+
+            <h2 class="text-lg font-semibold mb-4 text-slate-800 border-b pb-2 mt-8">2. Cargar Base de Datos</h2>
+            <div class="bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl p-8 text-center hover:bg-slate-100 transition-colors relative">
+                <input type="file" id="excelUpload" accept=".xlsx, .xls, .csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
+                <i class="fa-solid fa-file-excel text-4xl text-brand-500 mb-3"></i>
+                <h3 class="text-base font-medium text-slate-700">Haz clic aquí para subir tu archivo Excel</h3>
+                <p class="text-sm text-slate-500 mt-1">Sube archivos como "SANDRA ORTIZ META (2)_3.xlsx"</p>
+                <div class="mt-4 text-xs text-slate-500 text-left bg-white p-3 rounded-lg border border-slate-200 inline-block">
+                    <p class="font-semibold mb-1"><i class="fa-solid fa-circle-info text-blue-500 mr-1"></i> El Excel debe tener columnas que se llamen parecido a:</p>
+                    <ul class="list-disc list-inside">
+                        <li><strong>Nombre</strong> (Ej: Juan Perez)</li>
+                        <li><strong>Telefono</strong> (Ej: 3156473870)</li>
+                        <li><strong>Saludo</strong> o <strong>Como referirnos</strong> (Ej: Juan, Arquitecto Diego)</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div id="loadingIndicator" class="hidden mt-4 text-center text-brand-600 font-medium">
+                <i class="fa-solid fa-spinner fa-spin mr-2"></i> Procesando archivo...
+            </div>
+        </div>
+
+        <div id="resultsSection" class="hidden">
+            <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                <div>
+                    <h2 class="text-lg font-semibold text-slate-800">Directorio de Contactos Generado</h2>
+                    <p class="text-sm text-slate-500" id="statsText">0 contactos listos</p>
+                </div>
+                
+                <div class="w-full sm:w-72 relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fa-solid fa-search text-slate-400"></i>
+                    </div>
+                    <input type="text" id="searchInput" class="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg leading-5 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 sm:text-sm transition-colors" placeholder="Buscar contacto...">
+                </div>
+            </div>
+
+            <div id="contactsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Las tarjetas dinámicas se inyectarán aquí -->
+            </div>
+        </div>
+
+    </main>
+
+    <div id="toast" class="fixed bottom-5 right-5 transform translate-y-20 opacity-0 transition-all duration-300 z-50 pointer-events-none">
+        <div class="bg-slate-800 text-white px-6 py-3 rounded-lg shadow-xl flex items-center gap-3">
+            <i class="fa-solid fa-circle-check text-green-400"></i>
+            <span id="toastMessage" class="font-medium">¡Acción exitosa!</span>
+        </div>
+    </div>
+
+    <script>
+        let contactsData = [];
+        const sentStatus = new Set();
+        
+        const fileInput = document.getElementById('excelUpload');
+        const brandInput = document.getElementById('brandInput');
+        const linkInput = document.getElementById('linkInput');
+        const messageTemplate = document.getElementById('messageTemplate');
+        const searchInput = document.getElementById('searchInput');
+        const gridElement = document.getElementById('contactsGrid');
+        const resultsSection = document.getElementById('resultsSection');
+        const statsText = document.getElementById('statsText');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+
+        fileInput.addEventListener('change', handleFileUpload);
+        
+        ['input', 'keyup', 'change'].forEach(evt => {
+            brandInput.addEventListener(evt, updateLiveMessages);
+            linkInput.addEventListener(evt, updateLiveMessages);
+            messageTemplate.addEventListener(evt, updateLiveMessages);
+        });
+
+        function updateLiveMessages() {
+            if (contactsData.length === 0) return;
+            
+            const productText = brandInput.value.trim() || "nuestros productos";
+            const linkText = linkInput.value.trim() || "nuestra web";
+            const templateText = messageTemplate.value;
+
+            contactsData = contactsData.map(contact => {
+                const message = templateText
+                    .replace(/{Saludo}/gi, contact.greeting)
+                    .replace(/{Producto}/gi, productText)
+                    .replace(/{Enlace}/gi, linkText);
+                return { ...contact, message: message };
+            });
+
+            const searchTerm = searchInput.value.toLowerCase();
+            const filtered = contactsData.filter(contact => 
+                contact.name.toLowerCase().includes(searchTerm) || 
+                contact.greeting.toLowerCase().includes(searchTerm)
+            );
+            renderContacts(filtered);
+        }
+
+        function handleFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            loadingIndicator.classList.remove('hidden');
+            resultsSection.classList.add('hidden');
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    
+                    const rawJson = XLSX.utils.sheet_to_json(worksheet);
+                    
+                    processExcelData(rawJson);
+                } catch (error) {
+                    console.error("Error leyendo Excel:", error);
+                    showToast("Error al leer el archivo. Asegúrate que sea un Excel válido.");
+                    loadingIndicator.classList.add('hidden');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function processExcelData(data) {
+            const productText = brandInput.value.trim() || "nuestros productos";
+            const linkText = linkInput.value.trim() || "nuestra web";
+
+            contactsData = data.map(row => {
+                const keys = Object.keys(row);
+                
+                let name = "Contacto";
+                let phone = "";
+                let greeting = "Hola";
+
+                keys.forEach(k => {
+                    const normalizedKey = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+                    if (normalizedKey.includes('nombre')) name = row[k];
+                    if (normalizedKey.includes('telefono') || normalizedKey.includes('celular') || normalizedKey.includes('movil')) phone = String(row[k]);
+                    if (normalizedKey.includes('saludo') || normalizedKey.includes('comoreferirnos') || normalizedKey.includes('apodo')) greeting = row[k];
+                });
+
+                if (greeting === "Hola" && name !== "Contacto") {
+                    greeting = name.split(' ')[0]; 
+                }
+
+                let cleanPhone = phone.replace(/\D/g, '');
+                if (cleanPhone.length === 10) cleanPhone = '57' + cleanPhone;
+                
+                const templateText = messageTemplate.value;
+                const message = templateText
+                    .replace(/{Saludo}/g, greeting)
+                    .replace(/{Producto}/g, productText)
+                    .replace(/{Enlace}/g, linkText);
+
+                return {
+                    id: Math.random().toString(36).substr(2, 9),
+                    name: name,
+                    phone: cleanPhone,
+                    displayPhone: '+' + cleanPhone,
+                    greeting: greeting,
+                    message: message
+                };
+            }).filter(c => c.phone.length >= 10);
+
+            loadingIndicator.classList.add('hidden');
+            
+            if (contactsData.length > 0) {
+                resultsSection.classList.remove('hidden');
+                renderContacts(contactsData);
+                showToast(`¡${contactsData.length} contactos cargados con éxito!`);
+            } else {
+                showToast("No se encontraron datos válidos. Revisa las columnas de tu Excel.");
+            }
+        }
+
+        function renderContacts(contactsToRender) {
+            gridElement.innerHTML = '';
+            statsText.textContent = `Mostrando ${contactsToRender.length} contactos`;
+
+            contactsToRender.forEach(contact => {
+                const isSent = sentStatus.has(contact.id);
+                const cardClass = isSent ? 'bg-green-50 border-green-200' : 'bg-white border-slate-200';
+                const iconClass = isSent ? 'text-green-500' : 'text-slate-300';
+
+                const card = document.createElement('div');
+                card.className = `card-hover rounded-xl border ${cardClass} shadow-sm overflow-hidden flex flex-col h-full`;
+                card.innerHTML = `
+                    <div class="p-5 flex-grow">
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="font-bold text-slate-800 text-sm uppercase leading-tight">${contact.name}</h3>
+                            <i class="fa-solid fa-circle-check ${iconClass} text-xl" title="${isSent ? 'Mensaje gestionado' : 'Pendiente'}"></i>
+                        </div>
+                        <p class="text-brand-600 font-medium mb-3 flex items-center gap-2 text-sm">
+                            <i class="fa-solid fa-phone text-xs opacity-70"></i> ${contact.displayPhone}
+                        </p>
+                        <div class="bg-slate-50/50 rounded-lg p-3 text-sm text-slate-600 border border-slate-100 max-h-32 overflow-y-auto no-scrollbar relative group">
+                            ${contact.message}
+                        </div>
+                    </div>
+                    
+                    <div class="border-t border-slate-100 bg-slate-50/80 p-4 grid grid-cols-2 gap-3 mt-auto">
+                        <button onclick="copyMessage('${contact.id}')" class="flex items-center justify-center gap-2 w-full bg-white text-slate-700 hover:text-brand-600 hover:bg-slate-100 border border-slate-300 font-medium py-2 px-3 rounded-lg text-sm transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-200">
+                            <i class="fa-regular fa-copy"></i> Copiar
+                        </button>
+                        
+                        <button onclick="openWhatsApp('${contact.id}')" class="flex items-center justify-center gap-2 w-full bg-whatsapp text-white hover:bg-whatsappDark font-medium py-2 px-3 rounded-lg text-sm transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-whatsapp">
+                            <i class="fa-brands fa-whatsapp text-lg"></i> Enviar
+                        </button>
+                    </div>
+                `;
+                gridElement.appendChild(card);
+            });
+        }
+
+        function copyMessage(id) {
+            const contact = contactsData.find(c => c.id === id);
+            if (!contact) return;
+
+            const fallbackCopy = () => {
+                let textArea = document.createElement("textarea");
+                textArea.value = contact.message;
+                textArea.style.position = "fixed";
+                textArea.style.left = "-999999px";
+                textArea.style.top = "-999999px";
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    markAsSent(id);
+                    showToast(`Mensaje copiado para ${contact.greeting}`);
+                } catch (err) {
+                    showToast('Error al copiar. Intenta de nuevo.');
+                }
+                textArea.remove();
+            };
+
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(contact.message).then(() => {
+                    markAsSent(id);
+                    showToast(`Mensaje copiado para ${contact.greeting}`);
+                }).catch(() => fallbackCopy());
+            } else {
+                fallbackCopy();
+            }
+        }
+
+        function openWhatsApp(id) {
+            const contact = contactsData.find(c => c.id === id);
+            if (!contact) return;
+            
+            const encodedMessage = encodeURIComponent(contact.message);
+            const waUrl = `https://wa.me/${contact.phone}?text=${encodedMessage}`;
+            window.open(waUrl, '_blank');
+            
+            markAsSent(id);
+            showToast(`Abriendo WhatsApp de ${contact.greeting}...`);
+        }
+
+        function markAsSent(id) {
+            sentStatus.add(id);
+            const searchTerm = searchInput.value.toLowerCase();
+            const filtered = contactsData.filter(c => c.name.toLowerCase().includes(searchTerm));
+            renderContacts(filtered);
+        }
+
+        let toastTimeout;
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            
+            toastMessage.textContent = message;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const filtered = contactsData.filter(contact => 
+                contact.name.toLowerCase().includes(searchTerm) || 
+                contact.greeting.toLowerCase().includes(searchTerm)
+            );
+            renderContacts(filtered);
+        });
+    </script>
+</body>
+</html>
